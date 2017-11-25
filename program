@@ -1,0 +1,138 @@
+include "bits/stdc++.h"
+using namespace std;
+const int N = 5e5 + 5;
+
+int n , q , type , idx , val , l , r;
+
+struct snode {
+	int mn0;
+	int mx0;
+	int mn1;
+	int mx1;
+	int lidx0;
+	int ridx0;
+	int lidx1;
+	int ridx1;
+	snode() : mn0(1e9) , mn1(1e9) , mx0(0) , mx1(0) , lidx0(-1) , ridx0(-1) , lidx1(-1) , ridx1(-1) {}
+
+}segtree[N * 4];
+
+int lazy[N << 2];
+
+bool ok(snode & node) {
+	return node.lidx0 != -1 or node.lidx1 != -1;
+}
+
+
+void push(int node , int u , int v) {
+	if(lazy[node] & 1) {
+		swap(segtree[node].lidx0 , segtree[node].lidx1);
+		swap(segtree[node].ridx0 , segtree[node].ridx1);
+		swap(segtree[node].mn0 , segtree[node].mn1);
+		swap(segtree[node].mx0 , segtree[node].mx1);
+		if(u != v) {
+			lazy[node * 2] ^= lazy[node];
+			lazy[1 + (node * 2)] ^= lazy[node];
+		}
+		lazy[node] ^= lazy[node];
+	}
+}
+
+snode combine(snode lef , snode righ) {
+	snode res = snode();
+	if(!ok(lef)) {
+		return righ;
+	}
+	if(!ok(righ)) {
+		return lef;
+	}
+	res.mn0 = min(lef.mn0 , righ.mn0);
+	if(lef.ridx0 != -1 and righ.lidx0 != -1) {
+		res.mn0 = min(res.mn0 , righ.lidx0 - lef.ridx0);
+	}
+	res.mx0 = max(lef.mx0 , righ.mx0);
+	if(lef.lidx0 != -1 and righ.ridx0 != -1) {
+		res.mx0 = max(res.mx0 , righ.ridx0 - lef.lidx0);
+	}
+	res.mn1 = min(lef.mn1 , righ.mn1);
+	if(lef.ridx1 != -1 and righ.lidx1 != -1) {
+		res.mn1 = min(res.mn1 , righ.lidx1 - lef.ridx1);
+	}
+	res.mx1 = max(lef.mx1 , righ.mx1);
+	if(lef.lidx1 != -1 and righ.ridx1 != -1) {
+		res.mx1 = max(res.mx1 , righ.ridx1 - lef.lidx1);
+	}
+	res.lidx0 = lef.lidx0 != -1 ? lef.lidx0 : righ.lidx0;
+	res.lidx1 = lef.lidx1 != -1 ? lef.lidx1 : righ.lidx1;
+	res.ridx0 = righ.ridx0 != -1 ? righ.ridx0 : lef.ridx0;
+	res.ridx1 = righ.ridx1 != -1 ? righ.ridx1 : lef.ridx1;
+	return res;
+}
+
+
+void upd(int node , int u , int v , int l , int r) {
+	push(node , u , v);
+	if(u > v | u > r | v < l) return;
+	if(u >= l && v <= r) {
+		swap(segtree[node].lidx0 , segtree[node].lidx1);
+		swap(segtree[node].ridx0 , segtree[node].ridx1);
+		swap(segtree[node].mn0 , segtree[node].mn1);
+		swap(segtree[node].mx0 , segtree[node].mx1);
+		if(u != v) {
+			lazy[node * 2] ^= 1;
+			lazy[1 + (node * 2)] ^= 1;
+		}
+		return;	
+	}
+	int m = (u + v) / 2;
+	upd(node * 2 , u , m , l , r);
+	upd(1 + (node * 2) , m + 1 , v , l , r);
+	segtree[node] = combine(segtree[node * 2] , segtree[1 + (node * 2)]);
+}
+
+
+snode query(int node , int u , int v , int l , int r) {
+	push(node , u , v);
+	if(u > v | u > r | v < l) return snode();
+	if(u >= l && v <= r) return segtree[node];
+	int m = (u + v) / 2;
+	return combine(query(node * 2 , u , m , l , r) , query(1 + (node * 2) , m + 1 , v , l , r) );
+}
+
+void build(int node , int u , int v) {
+	if(u > v) return;
+	if(u == v) {
+		segtree[node] = snode();
+		segtree[node].lidx0 = u;
+		segtree[node].ridx0 = u;
+		return;
+	}
+	int m = (u + v) / 2;
+	build(node * 2 , u , m);
+	build(1 + (node * 2) , m + 1 , v);
+	segtree[node] = combine(segtree[node * 2] , segtree[1 + (node * 2)]);
+}
+
+
+int main() {
+	memset(lazy , 0 , sizeof lazy);
+	scanf("%d %d" , &n , &q);
+	build(1 , 1 , n);
+	while(q--) {
+		scanf("%d" , &type);
+		if(type == 1) {
+			scanf("%d %d %d" , &l , &r , &val);
+			if(!val) continue;
+			upd(1 , 1 , n , l , r);
+		} else {
+			scanf("%d %d" , &l , &r);
+			snode ans = query(1 , 1 , n , l , r);
+			if(type == 2) {
+				printf("%d\n" , ans.mn1 == 1e9 ? -1 : ans.mn1);
+			} else {
+				printf("%d\n" , ans.mx1 == 0 ? -1 : ans.mx1);
+			}
+		}
+	}
+	return 0;
+}
